@@ -1,15 +1,15 @@
 return {
     {
-       "williamboman/mason.nvim",
+        "williamboman/mason.nvim",
         config = function()
             require("mason").setup()
-        end 
-    }, 
+        end
+    },
     {
         "williamboman/mason-lspconfig.nvim",
         config = function()
             require("mason-lspconfig").setup({
-                ensure_installed = { "pyright", "ruff", "clangd", "lua_ls"}
+                ensure_installed = { "pyright", "ruff", "ts_ls", "clangd", "lua_ls" }
             })
         end
     },
@@ -19,19 +19,22 @@ return {
             local lspconfig = require("lspconfig")
             local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
-            lspconfig.pyright.setup{
-                capabilities=capabilities
-            }
-            lspconfig.ruff.setup{
-                capabilities=capabilities
-            }
-            lspconfig.clangd.setup{
-                capabilities=capabilities
-            }
-            lspconfig.lua_ls.setup{
-                capabilities=capabilities
-            }
 
+            lspconfig.pyright.setup {
+                capabilities = capabilities
+            }
+            lspconfig.ruff.setup {
+                capabilities = capabilities
+            }
+            lspconfig.clangd.setup {
+                capabilities = capabilities
+            }
+            lspconfig.lua_ls.setup {
+                capabilities = capabilities
+            }
+            lspconfig.ts_ls.setup {
+                capabilities = capabilities
+            }
         end
     }
 }
