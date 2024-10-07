@@ -38,10 +38,10 @@ vim.keymap.set("n", "<C-j>", "<C-w>j")
 vim.keymap.set("n", "<C-k>", "<C-w>k")
 
 -- Solit Size
-vim.keymap.set("n", "<C-Left>", ":vertical resize +3<CR>")
-vim.keymap.set("n", "<C-Right>", ":vertical resize -3<CR>")
-vim.keymap.set("n", "<C-Up>", ":horizontal resize +3<CR>")
-vim.keymap.set("n", "<C-Down>", ":horizontal resize -3<CR>")
+vim.keymap.set("n", "<C-Left>", ":vertical resize -3<CR>")
+vim.keymap.set("n", "<C-Right>", ":vertical resize +3<CR>")
+vim.keymap.set("n", "<C-Up>", ":horizontal resize -3<CR>")
+vim.keymap.set("n", "<C-Down>", ":horizontal resize +3<CR>")
 
 -- Automatically close brackets
 vim.keymap.set("i", "'", "''<left>")
@@ -53,8 +53,8 @@ vim.keymap.set("i", "{;", "{};<left><left>")
 vim.keymap.set("i", "/*", "/**/<left><left>")
 
 -- Comments
-vim.keymap.set({"n", "v"}, "<leader>s", "gc", {remap = true})
-vim.keymap.set({"n"}, "<leader>ss", "gcc", {remap = true})  
+vim.keymap.set({"n", "v"}, "<leader>c", "gc", {remap = true})
+vim.keymap.set({"n"}, "<leader>cc", "gcc", {remap = true})  
 
 vim.keymap.set("n", "<C-u>", "<C-u>zz")
 vim.keymap.set("n", "<C-d>", "<C-d>zz")
