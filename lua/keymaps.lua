@@ -19,8 +19,8 @@ vim.keymap.set("n", "K", vim.lsp.buf.hover, {})
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, {})
 
 -- Barebone Setup
-vim.keymap.set("n", "<leader>e", ":Ex<CR>")
-vim.keymap.set("n", "<leader>b", ":25Lex<CR>")
+vim.keymap.set("n", "<leader>e", ":Neotree toggle<CR>")
+vim.keymap.set("n", "<leader>b", ":Neotree focus<CR>")
 
 -- Easy Split
 vim.keymap.set("n", "<leader>v", ":vsplit<CR>")
