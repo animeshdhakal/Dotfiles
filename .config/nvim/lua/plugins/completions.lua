@@ -11,12 +11,15 @@ return {
         dependencies = {
             "L3MON4D3/LuaSnip",
             "saadparwaiz1/cmp_luasnip",
-            "afamadriz/friendly-snippets",
+            "rafamadriz/friendly-snippets",
         },
         config = function()
-            local cmp = require 'cmp'
+            local cmp = require('cmp')
             local lspkind = require('lspkind')
 
+            require("luasnip.loaders.from_vscode").lazy_load();
+
+            cmp.scroll_docs();
 
             cmp.setup({
                 snippet = {
