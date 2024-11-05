@@ -1,3 +1,5 @@
 alias act='source .venv/bin/activate'
 alias dct='deactivate'
 alias get_idf='source ~/esp/esp-idf/export.sh'
+setxkbmap -option caps:swapescape
+set -o vi
