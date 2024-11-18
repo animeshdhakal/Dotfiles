@@ -18,10 +18,19 @@ return {
         config = function()
             local lspconfig = require("lspconfig")
             local capabilities = require('cmp_nvim_lsp').default_capabilities()
+            local esp_idf_path = os.getenv("IDF_PATH")
 
-            lspconfig.clangd.setup {
-                capabilities = capabilities
-            }
+            if esp_idf_path then
+                local clangd = vim.fn.expand('/home/animesh/.espressif/tools/esp-clang/*/esp-clang/bin/clangd')
+                lspconfig.clangd.setup {
+                    capabilities = capabilities,
+                    cmd = { clangd, '--background-index', '--query-driver=**', }
+                }
+            else
+                lspconfig.clangd.setup {
+                    capabilities = capabilities
+                }
+            end
 
             lspconfig.pyright.setup {
                 capabilities = capabilities
