@@ -1,25 +1,20 @@
 return {
     {
+
         "hrsh7th/cmp-nvim-lsp"
     },
     {
-        "onsails/lspkind.nvim"
+        "L3MON4D3/LuaSnip",
+        dependencies = {
+            "saadparwaiz1/cmp_luasnip",
+            "rafamadriz/friendly-snippets"
+        }
     },
     {
-
         "hrsh7th/nvim-cmp",
-        dependencies = {
-            "L3MON4D3/LuaSnip",
-            "saadparwaiz1/cmp_luasnip",
-            "rafamadriz/friendly-snippets",
-        },
         config = function()
-            local cmp = require('cmp')
-            local lspkind = require('lspkind')
-
-            require("luasnip.loaders.from_vscode").lazy_load();
-
-            cmp.scroll_docs();
+            local cmp = require 'cmp'
+            require("luasnip.loaders.from_vscode").lazy_load()
 
             cmp.setup({
                 snippet = {
@@ -43,25 +38,26 @@ return {
                     { name = 'luasnip' }, -- For luasnip users.
                 }, {
                     { name = 'buffer' },
-                }),
+                })
+            })
 
-                confirmation = {
-                    compeleteopt = 'menu,menuone,noinsert'
-                }, 
 
-                formatting = {
-                    format = lspkind.cmp_format({
-                        mode = 'symbol',          -- show only symbol annotations
-                        maxwidth = 50,            -- prevent the popup from showing more than provided characters (e.g 50 will not show more than 50 characters)
-                        ellipsis_char = '...',    -- when popup menu exceed maxwidth, the truncated part would show ellipsis_char instead (must define maxwidth first)
-                        show_labelDetails = true, -- show labelDetails in menu. Disabled by default
-
-                        before = function(entry, vim_item)
-                            return vim_item
-                        end
-                    })
+            cmp.setup.cmdline({ '/', '?' }, {
+                mapping = cmp.mapping.preset.cmdline(),
+                sources = {
+                    { name = 'buffer' }
                 }
+            })
 
+            -- Use cmdline & path source for ':' (if you enabled `native_menu`, this won't work anymore).
+            cmp.setup.cmdline(':', {
+                -- mapping = cmp.mapping.preset.cmdline(),
+                sources = cmp.config.sources({
+                    { name = 'path' }
+                }, {
+                    { name = 'cmdline' }
+                }),
+                matching = { disallow_symbol_nonprefix_matching = false }
             })
         end
     }
