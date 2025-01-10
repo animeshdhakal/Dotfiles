@@ -15,10 +15,6 @@ vim.keymap.set("n", "<Tab>", ":bn<CR>")
 vim.keymap.set("n", "<S-Tab>", ":bp<CR>")
 vim.keymap.set("n", "<leader>d", ":bd!<CR>")
 
--- Comments
-vim.keymap.set({"n", "v"}, "<leader>c", "gc", {remap = true})
-vim.keymap.set({"n"}, "<leader>cc", "gcc", {remap = true})
-
 -- Solit Size
 vim.keymap.set("n", "<C-Left>", ":vertical resize -3<CR>")
 vim.keymap.set("n", "<C-Right>", ":vertical resize +3<CR>")

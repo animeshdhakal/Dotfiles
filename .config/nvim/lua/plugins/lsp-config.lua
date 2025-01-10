@@ -17,21 +17,11 @@ return {
         "neovim/nvim-lspconfig",
         config = function()
             local lspconfig = require("lspconfig")
-            local esp_idf_path = os.getenv("IDF_PATH")
             local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
-            if esp_idf_path then
-                local clangd = vim.fn.expand('/home/animesh/.espressif/tools/esp-clang/*/esp-clang/bin/clangd')
-                lspconfig.clangd.setup {
-                    cmd = { clangd, '--background-index', '--query-driver=**', },
-                    capabilites=capabilities
-                }
-            else
-                lspconfig.clangd.setup {
+            lspconfig.clangd.setup {
                 capabilites=capabilities
-                }
-            end
-
+            }
             lspconfig.pyright.setup {
                 capabilites=capabilities
             }
