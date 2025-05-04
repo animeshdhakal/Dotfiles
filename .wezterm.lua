@@ -7,5 +7,4 @@ config.font_size = 10
 config.enable_tab_bar = false
 config.color_scheme = 'Tokyo Night Storm'
 
-
 return config
