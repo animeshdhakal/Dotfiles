@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 #
-# Back up this Mac's config files into the root of the Dotfiles repo.
+# Back up this Mac's config files into the Dotfiles repo (mac/).
 #
 # Usage:
-#   ./cp-files.sh          # copy files into the repo
-#   ./cp-files.sh --push   # copy, commit and push in one go
+#   ./mac/cp-files.sh          # copy files into the repo
+#   ./mac/cp-files.sh --push   # copy, commit and push in one go
 
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$MAC_DIR")"
 HOME_DIR="$HOME"
 
 # Single files, relative to $HOME
@@ -26,7 +27,6 @@ FILES=(
 
 # Directories, relative to $HOME (copied recursively, mirroring deletions)
 DIRS=(
-  ".bin"
   ".config/nvim"
   ".config/ghostty"
   ".config/btop"
@@ -35,8 +35,6 @@ DIRS=(
   ".config/skhd"
   ".config/neru"
   ".config/opencode"
-  ".config/asm-lsp"
-  ".config/trippy"
 )
 
 # Never copy these (machine-local state, secrets, binaries)
@@ -58,7 +56,7 @@ for f in "${FILES[@]}"; do
     skipped=$((skipped + 1))
     continue
   fi
-  dest="$REPO_DIR/$f"
+  dest="$MAC_DIR/$f"
   mkdir -p "$(dirname "$dest")"
   cp -p "$src" "$dest"
   printf 'copied %s\n' "$f"
@@ -72,9 +70,9 @@ for d in "${DIRS[@]}"; do
     skipped=$((skipped + 1))
     continue
   fi
-  dest="$REPO_DIR/$d"
+  dest="$MAC_DIR/$d"
   mkdir -p "$dest"
-  rsync_args=(-aL --delete)
+  rsync_args=(-a --delete)
   for e in "${EXCLUDES[@]}"; do
     rsync_args+=("--exclude=$e")
   done
@@ -87,7 +85,7 @@ printf '\n%d item(s) copied, %d skipped.\n' "$copied" "$skipped"
 
 if [ "${1:-}" = "--push" ]; then
   cd "$REPO_DIR"
-  git add -A .
+  git add -A mac
   if git diff --cached --quiet; then
     echo "Nothing to commit, repo already up to date."
   else
@@ -99,11 +97,11 @@ else
 
 Next steps:
   cd "$REPO_DIR"
-  git add -A .
+  git add -A mac
   git commit -m "Update mac dotfiles"
   git push
 
 Or do it all at once:
-  "$REPO_DIR/cp-files.sh" --push
+  ./mac/cp-files.sh --push
 EOF
 fi

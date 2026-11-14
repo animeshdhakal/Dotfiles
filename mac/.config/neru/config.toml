@@ -1,0 +1,105 @@
+[general]
+passthrough_unbounded_keys = true
+
+[hotkeys]
+"Option+U" = "recursive_grid --cursor-selection-mode hold"
+"Option+I" = "scroll"
+
+"Cmd+Shift+Space" = "__disabled__"
+"Cmd+Shift+G" = "__disabled__"
+"Cmd+Shift+C" = "__disabled__"
+"Cmd+Shift+S" = "__disabled__"
+
+[scroll.hotkeys]
+"," = "action move_mouse --center"
+"." = "recursive_grid --cursor-selection-mode hold"
+
+"Space" = ["action left_click", "idle"]
+"Shift+Space" = "action left_click"
+"Cmd+Space" = ["action right_click", "idle"]
+"Cmd+Shift+Space" = "action right_click"
+
+"Shift+M" = "action middle_click"
+"Shift+D" = "action mouse_down"
+"Shift+U" = "action mouse_up"
+
+"Up" = "action move_mouse_relative --dx=0 --dy=-25"
+"Down" = "action move_mouse_relative --dx=0 --dy=25"
+"Left" = "action move_mouse_relative --dx=-25 --dy=0"
+"Right" = "action move_mouse_relative --dx=25 --dy=0"
+
+"Cmd+Up" = "action move_mouse_relative --dx=0 --dy=-150"
+"Cmd+Down" = "action move_mouse_relative --dx=0 --dy=150"
+"Cmd+Left" = "action move_mouse_relative --dx=-150 --dy=0"
+"Cmd+Right" = "action move_mouse_relative --dx=150 --dy=0"
+
+"Shift+Up" = "action move_mouse_relative --dx=0 --dy=-5"
+"Shift+Down" = "action move_mouse_relative --dx=0 --dy=5"
+"Shift+Left" = "action move_mouse_relative --dx=-5 --dy=0"
+"Shift+Right" = "action move_mouse_relative --dx=5 --dy=0"
+
+"Shift+L" = "__disabled__"
+"Shift+R" = "__disabled__"
+"Shift+I" = "__disabled__"
+
+
+[recursive_grid]
+grid_cols = 5
+grid_rows = 5
+keys = "qwertasdfgcvbnmyuiophjkl;"
+
+[recursive_grid.ui]
+line_color = "#DC143C"
+line_width = 1
+text_color = "#00000000"
+highlight_color = "#00000000"
+
+
+[recursive_grid.hotkeys]
+"Up" = "action move_mouse_relative --dx=0 --dy=-25"
+"Down" = "action move_mouse_relative --dx=0 --dy=25"
+"Left" = "action move_mouse_relative --dx=-25 --dy=0"
+"Right" = "action move_mouse_relative --dx=25 --dy=0"
+
+"Cmd+Up" = "action move_mouse_relative --dx=0 --dy=-150"
+"Cmd+Down" = "action move_mouse_relative --dx=0 --dy=150"
+"Cmd+Left" = "action move_mouse_relative --dx=-150 --dy=0"
+"Cmd+Right" = "action move_mouse_relative --dx=150 --dy=0"
+
+"Shift+Up" = "action move_mouse_relative --dx=0 --dy=-5"
+"Shift+Down" = "action move_mouse_relative --dx=0 --dy=5"
+"Shift+Left" = "action move_mouse_relative --dx=-5 --dy=0"
+"Shift+Right" = "action move_mouse_relative --dx=5 --dy=0"
+
+"Space" = ["action left_click", "idle"]
+"Shift+Space" = ["action left_click", "action reset"]
+"Cmd+Space" = ["action right_click", "idle"]
+"Cmd+Shift+Space" = ["action right_click", "action reset"]
+"Option+Space" = ["action left_click", "action left_click", "idle"]
+"Option+Shift+Space" = ["action left_click", "action left_click", "action reset"]
+
+"Shift+M" = "action middle_click"
+"Shift+D" = "action mouse_down"
+"Shift+U" = "action mouse_up"
+
+"`" = "toggle-cursor-follow-selection"
+"," = "action reset"
+"." = ["action move_mouse", "scroll"]
+
+"Ctrl+J" = "action scroll_down"
+"Ctrl+K" = "action scroll_up"
+"Ctrl+H" = "action scroll_left"
+"Ctrl+L" = "action scroll_right"
+"Ctrl+U" = "action page_up"
+"Ctrl+D" = "action page_down"
+"Ctrl+T" = "action go_top"
+"Ctrl+B" = "action go_bottom"
+"Ctrl+M" = "action move_mouse"
+
+"Shift+L" = "__disabled__"
+"Shift+R" = "__disabled__"
+"Shift+I" = "__disabled__"
+
+[systray]
+enabled = false
+
