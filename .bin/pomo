@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+
+HISTORY_FILE="${POMO_HISTORY:-$HOME/.pomo_history}"
+touch "$HISTORY_FILE"
+
+notify() {
+  local title="$1"
+  local msg="$2"
+  if command -v notify-send &>/dev/null; then
+    notify-send "$title" "$msg"
+  elif command -v osascript &>/dev/null; then
+    osascript -e "display notification \"$msg\" with title \"$title\""
+  fi
+  printf '\a'
+}
+
+countdown() {
+  local mins="$1"
+  local label="$2"
+
+  if command -v termdown &>/dev/null; then
+    termdown "${mins}m" --title "$label"
+    return $?
+  fi
+
+  local total_secs=$((mins * 60))
+  while [ "$total_secs" -gt 0 ]; do
+    printf "\r\033[K[%s] %02d:%02d remaining..." "$label" $((total_secs / 60)) $((total_secs % 60))
+    sleep 1
+    ((total_secs--))
+  done
+  printf "\r\033[K[%s] 00:00 Done!\n" "$label"
+}
+
+run_focus_session() {
+  local task="$1"
+  local target_mins="$2"
+  local start_ts=$SECONDS
+  local logged=0
+
+  log_elapsed() {
+    [ "$logged" -eq 1 ] && return
+    logged=1
+
+    local status="$1"
+    local elapsed_secs=$((SECONDS - start_ts))
+    local elapsed_mins=$((elapsed_secs / 60))
+
+    # Cap at target_mins in case of minor sleep drift
+    [ "$elapsed_mins" -gt "$target_mins" ] && elapsed_mins="$target_mins"
+
+    if [ "$elapsed_mins" -ge 1 ]; then
+      echo "$(date '+%Y-%m-%d %H:%M') | ${elapsed_mins}m | $task | $status" >> "$HISTORY_FILE"
+      echo -e "\nLogged ${elapsed_mins}m for \"$task\" ($status)."
+    else
+      echo -e "\nStopped under 1 minute — nothing logged."
+    fi
+  }
+
+  # Trap Ctrl+C (SIGINT) and termination signals to log partial progress
+  trap 'log_elapsed "partial"; trap - INT TERM; exit 130' INT TERM
+
+  if countdown "$target_mins" "$task"; then
+    trap - INT TERM
+    log_elapsed "completed"
+    notify "Pomodoro complete" "$task (${target_mins}m)"
+  else
+    trap - INT TERM
+    log_elapsed "partial"
+  fi
+}
+
+show_stats() {
+  if [ ! -s "$HISTORY_FILE" ]; then
+    echo "No sessions logged yet in $HISTORY_FILE."
+    return
+  fi
+
+  local today
+  today=$(date '+%Y-%m-%d')
+  local week_ago
+  week_ago=$(date -d "7 days ago" '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d')
+
+  awk -F ' \\| ' -v today="$today" -v week_ago="$week_ago" '
+  {
+    split($1, dt, " ")
+    day = dt[1]
+    mins = $2
+    gsub(/m/, "", mins)
+    task = $3
+    status = ($4 != "" ? $4 : "completed")
+
+    total_mins += mins
+    total_sessions++
+    if (status == "partial") total_partials++
+
+    task_mins[task] += mins
+    task_count[task]++
+
+    if (day == today) {
+      today_mins += mins
+      today_sessions++
+    }
+    if (day >= week_ago) {
+      week_mins += mins
+      week_sessions++
+    }
+  }
+  END {
+    printf "\n=== Pomodoro Stats ===\n"
+    printf "Today:      %d sessions (%d hrs %d mins)\n", today_sessions, int(today_mins/60), today_mins%60
+    printf "Last 7d:    %d sessions (%d hrs %d mins)\n", week_sessions, int(week_mins/60), week_mins%60
+    printf "All-Time:   %d sessions (%d hrs %d mins) [%d partial]\n", total_sessions, int(total_mins/60), total_mins%60, total_partials
+
+    printf "\n=== Breakdown by Task ===\n"
+    for (t in task_mins) {
+      printf "  %-22s %3d sessions  (%d mins)\n", t, task_count[t], task_mins[t]
+    }
+    printf "\n"
+  }' "$HISTORY_FILE"
+}
+
+show_history() {
+  local lines="${1:-10}"
+  echo "=== Last $lines Sessions ==="
+  tail -n "$lines" "$HISTORY_FILE"
+}
+
+case "$1" in
+  stats|-s)
+    show_stats
+    ;;
+  log|history|-l)
+    show_history "${2:-10}"
+    ;;
+  break|-b)
+    mins="${2:-5}"
+    if countdown "$mins" "Break"; then
+      notify "Break over" "Ready for the next session?"
+    fi
+    ;;
+  -h|--help)
+    cat <<EOF
+Usage:
+  pomo [task] [minutes]     Start a focus session (default: "Focus", 25m)
+  pomo break [minutes]      Start a break timer (default: 5m, does not log)
+  pomo stats                Show today, 7-day, all-time, and per-task stats
+  pomo log [n]              Show last n logged sessions (default: 10)
+EOF
+    ;;
+  *)
+    task="${1:-Focus}"
+    mins="${2:-25}"
+    run_focus_session "$task" "$mins"
+    ;;
+esac

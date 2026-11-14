@@ -1,0 +1,388 @@
+#!/usr/bin/swift
+import Cocoa
+import SwiftUI
+import Combine
+
+// ==========================================
+// Minimalist macOS Blink Reminder
+// Sleep-Safe & Multi-Monitor Protected
+// ==========================================
+
+struct Config {
+    var intervalSeconds: TimeInterval = 300 // Default: 5 minutes (300 seconds)
+    var autoDismissSeconds: Int = 8        // Default auto-dismiss: 8 seconds
+    var testImmediately: Bool = false
+    var soundName: String? = "Glass"       // Default gentle macOS chime sound
+}
+
+func parseArguments() -> Config {
+    var config = Config()
+    let args = CommandLine.arguments.dropFirst()
+    var iterator = args.makeIterator()
+
+    while let arg = iterator.next() {
+        switch arg {
+        case "--test", "-t", "--now":
+            config.testImmediately = true
+        case "--minutes", "-m":
+            if let next = iterator.next(), let m = Double(next) {
+                config.intervalSeconds = max(5, m * 60)
+            }
+        case "--seconds", "-s":
+            if let next = iterator.next(), let s = Double(next) {
+                config.intervalSeconds = max(2, s)
+            }
+        case "--sound":
+            if let next = iterator.next() {
+                config.soundName = next
+            }
+        case "--mute", "--no-sound":
+            config.soundName = nil
+        case "--help", "-h":
+            print("""
+            Blink Reminder for macOS
+
+            Usage:
+              swift blink_reminder.swift [options]
+              ./blink_reminder [options]
+
+            Options:
+              -t, --test, --now       Show reminder popup immediately
+              -m, --minutes <N>       Set reminder interval in minutes (default: 5)
+              -s, --seconds <N>       Set reminder interval in seconds (default: 300)
+              --sound <name>          System sound name (default: Glass, e.g. Ping, Pop, Submarine)
+              --mute, --no-sound      Disable alert sound
+              -h, --help              Show this help message
+            """)
+            exit(0)
+        default:
+            print("Unknown argument: \(arg). Use --help for options.")
+            exit(1)
+        }
+    }
+    return config
+}
+
+class OverlayWindow: NSWindow {
+    override var canBecomeKey: Bool { return true }
+    override var canBecomeMain: Bool { return true }
+
+    override func keyDown(with event: NSEvent) {
+        // Esc (53), Space (49), Return (36)
+        if event.keyCode == 53 || event.keyCode == 49 || event.keyCode == 36 {
+            OverlayManager.shared.dismissOverlays()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+}
+
+// Minimal, Apple-native style Overlay View
+struct BlinkOverlayView: View {
+    let duration: Double
+    let onDismiss: () -> Void
+
+    private let startDate: Date
+
+    let timer = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
+
+    init(autoDismissSeconds: Int = 8, onDismiss: @escaping () -> Void) {
+        self.duration = Double(autoDismissSeconds)
+        self.onDismiss = onDismiss
+        self.startDate = Date()
+    }
+
+    var body: some View {
+        ZStack {
+            // Dark fullscreen backdrop
+            Color.black.opacity(0.75)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    onDismiss()
+                }
+
+            // Minimalist Central Card
+            VStack(spacing: 20) {
+                Image(systemName: "eye")
+                    .font(.system(size: 38, weight: .light))
+                    .foregroundColor(.white)
+                    .padding(.top, 4)
+
+                VStack(spacing: 6) {
+                    Text("Blink your eyes")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+
+                    Text("Look away and take a brief rest.")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(Color.white.opacity(0.6))
+                }
+
+                Button(action: onDismiss) {
+                    Text("Done")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                // Subtly animated progress line (TimelineView-driven, no @State needed)
+                TimelineView(.animation) { timeline in
+                    let remaining = max(0, 1 - timeline.date.timeIntervalSince(startDate) / duration)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.08))
+                            Capsule()
+                                .fill(Color.white.opacity(0.35))
+                                .frame(width: max(0, geo.size.width * CGFloat(remaining)))
+                        }
+                    }
+                }
+                .frame(height: 3)
+                .padding(.top, 2)
+            }
+            .padding(28)
+            .frame(width: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(white: 0.1, opacity: 0.96))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.4), radius: 24, x: 0, y: 12)
+            )
+        }
+        .onReceive(timer) { now in
+            if now.timeIntervalSince(startDate) >= duration {
+                onDismiss()
+            }
+        }
+    }
+}
+
+class OverlayManager {
+    static let shared = OverlayManager()
+    private var windows: [NSWindow] = []
+    private var previousApp: NSRunningApplication?
+
+    private func capturePreviousApp() {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+           frontmost.processIdentifier != currentPID {
+            if self.previousApp == nil || self.previousApp?.processIdentifier == currentPID {
+                self.previousApp = frontmost
+            }
+        }
+    }
+
+    func showOverlays(autoDismissSeconds: Int = 8, soundName: String? = "Glass") {
+        capturePreviousApp()
+        DispatchQueue.main.async { [weak self] in
+            self?.performShowOverlays(autoDismissSeconds: autoDismissSeconds, soundName: soundName)
+        }
+    }
+
+    private func closeWindows() {
+        guard !windows.isEmpty else { return }
+        let activeWindows = windows
+        windows.removeAll()
+        for window in activeWindows {
+            window.orderOut(nil)
+            window.contentView = nil
+            window.close()
+        }
+    }
+
+    private func performShowOverlays(autoDismissSeconds: Int = 8, soundName: String? = "Glass") {
+        capturePreviousApp()
+        closeWindows()
+
+        // Safely validate screens before attempting display creation
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else { return }
+
+        // Filter valid, non-zero frame screens
+        let validScreens = screens.filter { $0.frame.width > 100 && $0.frame.height > 100 }
+        guard !validScreens.isEmpty else { return }
+
+        // Play gentle macOS system sound chime safely
+        if let soundName = soundName {
+            if let sound = NSSound(named: NSSound.Name(soundName)) {
+                sound.play()
+            } else {
+                NSSound.beep()
+            }
+        }
+
+        for screen in validScreens {
+            let window = OverlayWindow(
+                contentRect: screen.frame,
+                styleMask: [.borderless],
+                backing: .buffered,
+                defer: false,
+                screen: screen
+            )
+
+            window.isReleasedWhenClosed = false
+            window.level = .screenSaver
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.ignoresMouseEvents = false
+
+            let hostingView = NSHostingView(
+                rootView: BlinkOverlayView(autoDismissSeconds: autoDismissSeconds) { [weak self] in
+                    self?.dismissOverlays()
+                }
+            )
+            window.contentView = hostingView
+            window.setFrame(screen.frame, display: true)
+            window.makeKeyAndOrderFront(nil)
+            windows.append(window)
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func dismissOverlays() {
+        DispatchQueue.main.async { [weak self] in
+            self?.performDismissOverlays()
+        }
+    }
+
+    private func performDismissOverlays() {
+        closeWindows()
+        restorePreviousFocus()
+    }
+
+    private func restorePreviousFocus() {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let currentFront = NSWorkspace.shared.frontmostApplication
+
+        // If another app became frontmost while the overlay was visible, respect that;
+        // otherwise restore focus to the app that was frontmost before the overlay appeared.
+        let targetApp: NSRunningApplication?
+        if let currentFront = currentFront,
+           currentFront.processIdentifier != currentPID,
+           !currentFront.isTerminated {
+            targetApp = currentFront
+        } else {
+            targetApp = previousApp
+        }
+        previousApp = nil
+
+        func activateTarget() {
+            if let app = targetApp, !app.isTerminated {
+                if #available(macOS 14.0, *) {
+                    app.activate()
+                } else {
+                    app.activate(options: [.activateIgnoringOtherApps])
+                }
+            }
+            NSApp.deactivate()
+        }
+
+        activateTarget()
+        // Ensure focus is restored after the window server finishes removing the fullscreen overlay
+        DispatchQueue.main.async {
+            activateTarget()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            activateTarget()
+        }
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var timer: Timer?
+    var config: Config = Config()
+    private var isSleeping: Bool = false
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+
+        setupSleepWakeNotifications()
+        setupScreenChangeNotifications()
+        startTimer()
+
+        let minutesStr = String(format: "%.1f", config.intervalSeconds / 60.0)
+        print("Blink Reminder active (Interval: \(minutesStr) min, Sound: \(config.soundName ?? "Muted"), Screens: \(NSScreen.screens.count))")
+
+        if config.testImmediately {
+            OverlayManager.shared.showOverlays(autoDismissSeconds: config.autoDismissSeconds, soundName: config.soundName)
+        }
+    }
+
+    private func setupSleepWakeNotifications() {
+        let ws = NSWorkspace.shared.notificationCenter
+
+        // System Sleep & Display Sleep
+        ws.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.handleSleep()
+        }
+        ws.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.handleSleep()
+        }
+
+        // System Wake & Display Wake
+        ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.handleWake()
+        }
+        ws.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.handleWake()
+        }
+    }
+
+    private func setupScreenChangeNotifications() {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // Clean up any stale windows if screens change or reconfigure
+            OverlayManager.shared.dismissOverlays()
+        }
+    }
+
+    private func handleSleep() {
+        isSleeping = true
+        timer?.invalidate()
+        timer = nil
+        OverlayManager.shared.dismissOverlays()
+    }
+
+    private func handleWake() {
+        isSleeping = false
+        // Brief delay after wake to allow display drivers & NSScreen array to stabilize
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            guard let self = self, !self.isSleeping else { return }
+            self.startTimer()
+        }
+    }
+
+    private func startTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: config.intervalSeconds, repeats: true) { [weak self] _ in
+            guard let self = self, !self.isSleeping else { return }
+            DispatchQueue.main.async {
+                OverlayManager.shared.showOverlays(autoDismissSeconds: self.config.autoDismissSeconds, soundName: self.config.soundName)
+            }
+        }
+    }
+}
+
+let config = parseArguments()
+let app = NSApplication.shared
+let delegate = AppDelegate()
+delegate.config = config
+app.delegate = delegate
+withExtendedLifetime(delegate) {
+    app.run()
+}

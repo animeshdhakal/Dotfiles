@@ -1,0 +1,17 @@
+# Global asm-lsp configuration
+# Docs: https://github.com/bergercookie/asm-lsp
+#
+# Defaults here target RISC-V GNU assembler (GAS) syntax.
+# A project-level .asm-lsp.toml takes precedence over this global config.
+
+[default_config]
+assembler = "gas"
+instruction_set = "riscv"
+
+[default_config.opts]
+# Diagnostics stay enabled, but only run when the project provides real
+# compilation info (compile_commands.json or compile_flags.txt).
+# With `default_diagnostics = false` the server won't fall back to invoking
+# the host compiler, which would produce false errors on RISC-V syntax.
+diagnostics = true
+default_diagnostics = false

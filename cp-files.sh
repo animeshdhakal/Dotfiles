@@ -26,6 +26,7 @@ FILES=(
 
 # Directories, relative to $HOME (copied recursively, mirroring deletions)
 DIRS=(
+  ".bin"
   ".config/nvim"
   ".config/ghostty"
   ".config/btop"
@@ -34,6 +35,8 @@ DIRS=(
   ".config/skhd"
   ".config/neru"
   ".config/opencode"
+  ".config/asm-lsp"
+  ".config/trippy"
 )
 
 # Never copy these (machine-local state, secrets, binaries)
@@ -71,7 +74,7 @@ for d in "${DIRS[@]}"; do
   fi
   dest="$REPO_DIR/$d"
   mkdir -p "$dest"
-  rsync_args=(-a --delete)
+  rsync_args=(-aL --delete)
   for e in "${EXCLUDES[@]}"; do
     rsync_args+=("--exclude=$e")
   done

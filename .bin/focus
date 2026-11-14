@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Customize your list of distracting domains here (base domains only)
+SITES=(
+    "reddit.com"
+    "youtube.com"
+    "twitter.com"
+    "x.com"
+    "instagram.com"
+    "facebook.com"
+    "tiktok.com"
+    "news.ycombinator.com"
+)
+
+HOSTS_FILE="/etc/hosts"
+START_MARKER="# >>> FOCUS MODE START <<<"
+END_MARKER="# <<< FOCUS MODE END <<<"
+
+# Ensure the script runs with root privileges to edit /etc/hosts
+if [[ $EUID -ne 0 ]]; then
+    exec sudo "$0" "$@"
+fi
+
+flush_dns() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        dscacheutil -flushcache
+        killall -HUP mDNSResponder 2>/dev/null || true
+    elif command -v resolvectl >/dev/null 2>&1; then
+        resolvectl flush-caches
+    elif command -v systemd-resolve >/dev/null 2>&1; then
+        systemd-resolve --flush-caches
+    fi
+}
+
+enable_focus() {
+    # Check if already active
+    if grep -q "$START_MARKER" "$HOSTS_FILE"; then
+        echo "Focus mode is already ON."
+        exit 0
+    fi
+
+    echo "Enabling focus mode..."
+    {
+        echo ""
+        echo "$START_MARKER"
+        for site in "${SITES[@]}"; do
+            # Redirect both IPv4 and IPv6, plus www subdomains
+            echo "127.0.0.1 $site www.$site"
+            echo "::1 $site www.$site"
+        done
+        echo "$END_MARKER"
+    } >> "$HOSTS_FILE"
+
+    flush_dns
+    echo "Focus mode is ON. Distracting sites blocked."
+}
+
+disable_focus() {
+    if ! grep -q "$START_MARKER" "$HOSTS_FILE"; then
+        echo "Focus mode is already OFF."
+        exit 0
+    fi
+
+    echo "Disabling focus mode..."
+    # Remove everything between the start and end markers (compatible with both GNU and BSD/macOS sed)
+    sed -i.bak "/$START_MARKER/,/$END_MARKER/d" "$HOSTS_FILE"
+    rm -f "${HOSTS_FILE}.bak"
+
+    flush_dns
+    echo "Focus mode is OFF. Sites unblocked."
+}
+
+case "$1" in
+    on)
+        enable_focus
+        ;;
+    off)
+        disable_focus
+        ;;
+    status)
+        if grep -q "$START_MARKER" "$HOSTS_FILE"; then
+            echo "Focus mode is currently ON."
+        else
+            echo "Focus mode is currently OFF."
+        fi
+        ;;
+    *)
+        echo "Usage: $(basename "$0") {on|off|status}"
+        exit 1
+        ;;
+esac
