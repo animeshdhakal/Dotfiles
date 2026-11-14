@@ -3,16 +3,21 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# Customize your list of distracting domains here (base domains only)
+# Customize your list of distracting domains here
+# The script automatically adds "www." to each entry below
 SITES=(
     "reddit.com"
+    "://reddit.com"
+    "://reddit.com"
+    "://reddit.com"
     "youtube.com"
+    "://youtube.com"
     "twitter.com"
     "x.com"
     "instagram.com"
     "facebook.com"
     "tiktok.com"
-    "news.ycombinator.com"
+    "://ycombinator.com"
 )
 
 HOSTS_FILE="/etc/hosts"
@@ -32,11 +37,12 @@ flush_dns() {
         resolvectl flush-caches
     elif command -v systemd-resolve >/dev/null 2>&1; then
         systemd-resolve --flush-caches
+    elif command -v nscd >/dev/null 2>&1; then
+        nscd -i hosts 2>/dev/null || true
     fi
 }
 
 enable_focus() {
-    # Check if already active
     if grep -q "$START_MARKER" "$HOSTS_FILE"; then
         echo "Focus mode is already ON."
         exit 0
@@ -44,12 +50,11 @@ enable_focus() {
 
     echo "Enabling focus mode..."
     {
-        echo ""
         echo "$START_MARKER"
         for site in "${SITES[@]}"; do
-            # Redirect both IPv4 and IPv6, plus www subdomains
-            echo "127.0.0.1 $site www.$site"
-            echo "::1 $site www.$site"
+            # 0.0.0.0 and :: drop connections immediately without waiting on local ports
+            echo "0.0.0.0 $site www.$site"
+            echo ":: $site www.$site"
         done
         echo "$END_MARKER"
     } >> "$HOSTS_FILE"
@@ -65,7 +70,7 @@ disable_focus() {
     fi
 
     echo "Disabling focus mode..."
-    # Remove everything between the start and end markers (compatible with both GNU and BSD/macOS sed)
+    # Remove everything between the start and end markers (compatible with GNU and BSD/macOS sed)
     sed -i.bak "/$START_MARKER/,/$END_MARKER/d" "$HOSTS_FILE"
     rm -f "${HOSTS_FILE}.bak"
 
