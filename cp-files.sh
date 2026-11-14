@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 #
-# Back up this Mac's config files into the Dotfiles repo (mac/).
+# Back up this Mac's config files into the root of the Dotfiles repo.
 #
 # Usage:
-#   ./mac/cp-files.sh          # copy files into the repo
-#   ./mac/cp-files.sh --push   # copy, commit and push in one go
+#   ./cp-files.sh          # copy files into the repo
+#   ./cp-files.sh --push   # copy, commit and push in one go
 
 set -euo pipefail
 
-MAC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(dirname "$MAC_DIR")"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOME_DIR="$HOME"
 
 # Single files, relative to $HOME
@@ -56,7 +55,7 @@ for f in "${FILES[@]}"; do
     skipped=$((skipped + 1))
     continue
   fi
-  dest="$MAC_DIR/$f"
+  dest="$REPO_DIR/$f"
   mkdir -p "$(dirname "$dest")"
   cp -p "$src" "$dest"
   printf 'copied %s\n' "$f"
@@ -70,7 +69,7 @@ for d in "${DIRS[@]}"; do
     skipped=$((skipped + 1))
     continue
   fi
-  dest="$MAC_DIR/$d"
+  dest="$REPO_DIR/$d"
   mkdir -p "$dest"
   rsync_args=(-a --delete)
   for e in "${EXCLUDES[@]}"; do
@@ -85,7 +84,7 @@ printf '\n%d item(s) copied, %d skipped.\n' "$copied" "$skipped"
 
 if [ "${1:-}" = "--push" ]; then
   cd "$REPO_DIR"
-  git add -A mac
+  git add -A .
   if git diff --cached --quiet; then
     echo "Nothing to commit, repo already up to date."
   else
@@ -97,11 +96,11 @@ else
 
 Next steps:
   cd "$REPO_DIR"
-  git add -A mac
+  git add -A .
   git commit -m "Update mac dotfiles"
   git push
 
 Or do it all at once:
-  ./mac/cp-files.sh --push
+  "$REPO_DIR/cp-files.sh" --push
 EOF
 fi

@@ -1,15 +1,23 @@
 # Dotfiles
 
-My configuration files, split per machine/OS.
+My configuration files. The repo root holds the macOS setup; Linux Mint lives
+in its own folder.
 
 ```
 Dotfiles/
-├── mint/   # Linux Mint setup (i3, zathura, nvim, tmux, wezterm, ...)
-└── mac/    # macOS setup (zsh, ghostty, btop, yazi, yabai, skhd, nvim, ...)
+├── .config/          # macOS configs (nvim, ghostty, btop, yazi, yabai, skhd, ...)
+├── .zshrc
+├── .zprofile
+├── .zshenv
+├── .profile
+├── .tcshrc
+├── .tmux.conf
+├── cp-files.sh       # macOS backup script
+└── mint/             # Linux Mint setup (i3, zathura, nvim, tmux, wezterm, ...)
 ```
 
-Each folder mirrors `$HOME`, so a file at `mac/.zshrc` belongs at `~/.zshrc`
-and `mint/.config/i3/config` belongs at `~/.config/i3/config`.
+The root mirrors `$HOME`, so `.zshrc` belongs at `~/.zshrc` and
+`.config/nvim/init.lua` at `~/.config/nvim/init.lua`.
 
 ## Backing up this machine
 
@@ -17,8 +25,8 @@ and `mint/.config/i3/config` belongs at `~/.config/i3/config`.
 
 ```sh
 cd ~/Dotfiles
-./mac/cp-files.sh          # copy configs from $HOME into mac/
-./mac/cp-files.sh --push   # copy, commit and push in one go
+./cp-files.sh          # copy configs from $HOME into the repo root
+./cp-files.sh --push   # copy, commit and push in one go
 ```
 
 The script copies a curated list of files/directories (see the `FILES` and
@@ -40,9 +48,8 @@ Run it from inside `mint/` so the relative `./.config` targets land in the repo.
 Copy the files back into place from the matching folder, e.g.
 
 ```sh
-cp -r ~/Dotfiles/mac/. ~/
-# or, on Mint
-cp -r ~/Dotfiles/mint/. ~/
+cp -r ~/Dotfiles/. ~/        # macOS
+cp -r ~/Dotfiles/mint/. ~/   # Linux Mint
 ```
 
 Review the contents before running anything, then restart your shell/apps.
