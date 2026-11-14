@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+#
+# Back up this Mac's configs and credentials to ~/cloud/backup/mac.
+#
+# Secrets are stored UNENCRYPTED on purpose (per user preference), so the
+# destination must stay private: ~/cloud is a Google Drive shared drive.
+#
+# Output per run (all chmod 600):
+#   mac-config_YYYYMMDD_HHMMSS.tar.gz  + .sha256  + mac-config-latest.tar.gz
+#   mac-secrets_YYYYMMDD_HHMMSS.tar.gz + .sha256  + mac-secrets-latest.tar.gz
+
+set -euo pipefail
+
+BACKUP_ROOT="${BACKUP_ROOT:-$HOME/cloud/backup/mac}"
+HOME_DIR="$HOME"
+KEEP=10
+STAMP="$(date +%Y%m%d_%H%M%S)"
+
+# Paths are relative to $HOME so archives restore with `tar -C ~`.
+CONFIG_PATHS=(
+  ".zshrc"
+  ".zprofile"
+  ".zshenv"
+  ".profile"
+  ".tcshrc"
+  ".tmux.conf"
+  ".inputrc"
+  ".clang-format"
+  ".bin"
+  "bin"
+  ".config/nvim"
+  ".config/ghostty"
+  ".config/btop"
+  ".config/yazi"
+  ".config/yabai"
+  ".config/skhd"
+  ".config/neru"
+  ".config/asm-lsp"
+  ".config/trippy"
+  ".config/GNS3"
+  ".config/starship.toml"
+)
+
+SECRETS_PATHS=(
+  ".ssh"
+  ".orbstack/ssh"
+  ".config/gh"
+  ".config/opencode"
+  ".config/colab-cli"
+  ".docker/config.json"
+  ".kube"
+  ".codex/auth.json"
+  ".codex/config.toml"
+  ".gemini/antigravity-cli/settings.json"
+  ".gemini/config/mcp_config.json"
+  ".gemini/config/import_manifest.json"
+)
+
+COMMON_EXCLUDES=(
+  ".DS_Store"
+  "*.log"
+  "*.pid"
+  "*.lock"
+  "node_modules"
+  ".git"
+)
+
+CONFIG_EXCLUDES=(
+  "geolite.mmdb"
+  "*.mmdb"
+  "lazy-lock.json"
+  ".config/colab-cli"
+  ".config/gh"
+)
+
+SECRETS_EXCLUDES=(
+  ".ssh/agent"
+  ".config/colab-cli/history"
+)
+
+mkdir -p "$BACKUP_ROOT"
+chmod 700 "$BACKUP_ROOT"
+umask 077
+
+# bash 3.2 on macOS has no mapfile, so use a plain loop.
+make_archive() {
+  local name="$1"
+  local excludes_csv="$2"
+  shift 2
+  local -a paths=() args=()
+  local p e
+
+  for p in "$@"; do
+    [ -e "$HOME_DIR/$p" ] && paths+=("$p")
+  done
+
+  if [ "${#paths[@]}" -eq 0 ]; then
+    echo "nothing to archive for $name"
+    return 0
+  fi
+
+  for e in $excludes_csv; do
+    args+=("--exclude=$e")
+  done
+
+  local tmp="$BACKUP_ROOT/.$name.tar.gz.tmp"
+  local latest="$BACKUP_ROOT/${name%%_*}-latest.tar.gz"
+
+  COPYFILE_DISABLE=1 tar -czf "$tmp" -C "$HOME_DIR" "${args[@]}" "${paths[@]}"
+  mv "$tmp" "$BACKUP_ROOT/$name.tar.gz"
+  chmod 600 "$BACKUP_ROOT/$name.tar.gz"
+  ( cd "$BACKUP_ROOT" && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256" )
+  chmod 600 "$BACKUP_ROOT/$name.tar.gz.sha256"
+  cp -p "$BACKUP_ROOT/$name.tar.gz" "$latest"
+  ( cd "$BACKUP_ROOT" && shasum -a 256 "$(basename "$latest")" > "$(basename "$latest").sha256" )
+  chmod 600 "$BACKUP_ROOT/$(basename "$latest").sha256"
+
+  printf '%s  %s\n' "$name.tar.gz" "$(du -h "$BACKUP_ROOT/$name.tar.gz" | cut -f1)"
+}
+
+prune() {
+  local prefix="$1"
+  ls -1t "$BACKUP_ROOT/$prefix"_*.tar.gz 2>/dev/null \
+    | tail -n +$((KEEP + 1)) \
+    | while IFS= read -r f; do
+        rm -f "$f" "$f.sha256"
+        echo "pruned $(basename "$f")"
+      done
+}
+
+LOG_TMP="$(mktemp -t backup-mac)"
+trap 'rm -f "$LOG_TMP"' EXIT
+
+{
+  echo "backup started:  $(date)"
+  echo "destination:     $BACKUP_ROOT"
+  echo
+  make_archive "mac-config_$STAMP" \
+    "${COMMON_EXCLUDES[*]} ${CONFIG_EXCLUDES[*]}" "${CONFIG_PATHS[@]}"
+  make_archive "mac-secrets_$STAMP" \
+    "${COMMON_EXCLUDES[*]} ${SECRETS_EXCLUDES[*]}" "${SECRETS_PATHS[@]}"
+  echo
+  prune "mac-config"
+  prune "mac-secrets"
+  echo
+  echo "backup finished: $(date)"
+} 2>&1 | tee "$LOG_TMP"
+
+cp "$LOG_TMP" "$BACKUP_ROOT/last-backup.log"
+chmod 600 "$BACKUP_ROOT/last-backup.log"
+
+cat > "$BACKUP_ROOT/RESTORE.txt" <<'EOF'
+Restore on a Mac
+================
+The archives mirror $HOME, so extract from your home directory:
+
+  cd ~
+  tar -xzf ~/cloud/backup/mac/mac-config-latest.tar.gz
+  tar -xzf ~/cloud/backup/mac/mac-secrets-latest.tar.gz
+
+Verify checksums first if you like:
+
+  cd ~/cloud/backup/mac && shasum -a 256 -c mac-config-latest.tar.gz.sha256
+
+Then fix permissions on secrets:
+
+  chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_* ~/.ssh/config
+  chmod 600 ~/.config/gh/hosts.yml ~/.codex/auth.json
+
+What is inside
+--------------
+mac-config : shell/tmux config, .bin scripts, nvim, ghostty, btop, yazi,
+             yabai, skhd, neru, asm-lsp, trippy, GNS3, starship.toml
+mac-secrets: ~/.ssh (keys + config), OrbStack SSH key, gh token,
+             opencode service.json, colab-cli token, docker config,
+             codex auth, gemini settings, kube config
+
+UNENCRYPTED. This folder lives on a shared Google Drive - keep access private.
+EOF
+chmod 600 "$BACKUP_ROOT/RESTORE.txt"
+
+echo
+echo "backup directory: $BACKUP_ROOT"
+ls -lh "$BACKUP_ROOT" | sed 's/^/  /'
